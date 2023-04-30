@@ -9,4 +9,5 @@
 - 메뉴얼은 실험자의 주관으로 만들었으며, 마이닝은 데이터의 문장에서 발취하였다.
 - mining + manual(1) =5 에서 manual 데이터는 가장 정답률이 높은 데이터를 사용하였다.
 
-<img width="1221" alt="main" src="file:///Users/baeg-ingeol/Documents/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA%202023-04-30%20%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB%2010.46.54.png">
+아래 이미지는 prompt_project 폴더의 prompt_result 파일의 화면이다.
+<img width="1496" alt="스크린샷 2023-04-30 오전 10 46 54" src="https://user-images.githubusercontent.com/113816871/235331922-749da927-d128-43c7-b0df-aa65db45b304.png">
