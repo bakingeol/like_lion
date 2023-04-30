@@ -131,8 +131,8 @@ no_relation_prompt = ['[x]는 [MASK]와 관련이 없다.', '[x]는 [MASK]와 �
 #%%
 len(per_origin), len(org_place_of_headquarters)
 #%% relation_name, obj_sub
+relation_name
 
-org_place_of_headquarters
 # %% 3개 프롬프트에 대한 정확성 파악
 def accuracy(prompt_list,subject_object):
     count,count2, count3 = 0,0,0
@@ -149,6 +149,11 @@ def accuracy(prompt_list,subject_object):
         if max_data_3['token_str'] == subject_object[i][1]:
             count3 += 1
     return count/len(subject_object), count2/len(subject_object), count3/len(subject_object)
+#%%
+org_alternate_names_prompt_mining = ['[x]의 다른 이름은 [MASK]이다', '[x]의 비슷한 이름은 [MASK]이다', '[x]는 [MASK] 이름을 사용한다.']
+relation_name[4], obj_sub[4]
+a,b,c = accuracy(org_alternate_names_prompt_mining,obj_sub[27])
+print(a,b,c)
 #%% 3개 프롬프트에 대한 실험
 from tqdm import tqdm
 for i in tqdm(range(len(relation_name))):
@@ -164,57 +169,95 @@ def accuracy_one(prompt_list,subject_object):
             count += 1
     return count/len(subject_object)
 #%% 프롬프트 1개에 대한 실험 '나라 국민이다.'
-prompt='[x]는 [MASK]에 본부가 있다.'
+prompt='[MASK]에 국적을 가지고 있는 사람은 [x]이다.'
 
-result = accuracy_one(prompt, obj_sub[23])
+result = accuracy_one(prompt, obj_sub[14])
 result
 # %%
-result
-#%% ######################################################################################## 앙상블 - 소프트 보팅
-import numpy as np
+relation_name
+#%% ######################################################################################## 앙상블 - 하드 보팅
+from collections import Counter
 
-# 주어진 데이터
-data = [
-    {'score': 0.043343231081962585, 'token': 3671, 'token_str': '서울', 'sequence': '이순신는 서울 에서 태어났다.'},
-    {'score': 0.045538727194070816, 'token': 1, 'token_str': '[PAD]', 'sequence': '이순신는 에서 살고 있다.'},
-    {'score': 0.06821455806493759, 'token': 3671, 'token_str': '서울', 'sequence': '이순신는 서울 출생이다.'}
-]
+def hard_voting(data):
+    """
+    Perform hard voting on the input data and return the most frequently occurring token_str value.
+    :param data: List of dictionaries with keys 'score', 'token', 'token_str', 'sequence'.
+    :return: The most frequent token_str value.
+    """
+    counter = Counter([d['token_str'] for d in data])
+    most_common = counter.most_common(1)[0]
+    return most_common[0]
 
-# 소프트 보팅으로 예측 확률값을 계산하여 가장 높은 값을 가진 클래스를 선택
-class_probs = np.zeros(32000) # 클래스 개수는 32000
-for d in data:
-    class_probs[d['token']] += d['score']
-y_soft_pred = np.argmax(class_probs)
-
-print("Soft voting prediction:", y_soft_pred)
-tokenizer.convert_ids_to_tokens(int(y_soft_pred))
-#%%
-
-def accuracy(prompt_list,subject_object):
-    count,count2, count3 = 0,0,0
-    for i in range(len(subject_object)):
-        a,b,c = prompt_list[0].replace('[x]',subject_object[i][0]),prompt_list[1].replace('[x]',subject_object[i][0]),prompt_list[2].replace('[x]',subject_object[i][0])
+def accuracy_hard_voting_3(prompt_list,obj_sub):
+    count=0
+    for i in range(len(obj_sub)): 
+        a,b,c = prompt_list[0].replace('[x]',obj_sub[i][0]),prompt_list[1].replace('[x]',obj_sub[i][0]),prompt_list[2].replace('[x]',obj_sub[i][0])
+        data = []
+        for j in range(5):
+            data.append(pip(a)[j])
+            data.append(pip(b)[j])
+            data.append(pip(c)[j])
         
-        max_data_1 = max(pip(a), key=lambda x: x['score'])
-        max_data_2 = max(pip(b), key=lambda x: x['score'])
-        max_data_3 = max(pip(c), key=lambda x: x['score'])
-        if max_data_1['token_str'] == subject_object[i][1]:
+        if hard_voting(data) == obj_sub[i][1]:
             count += 1
-        if max_data_2['token_str'] == subject_object[i][1]:
-            count2 += 1
-        if max_data_3['token_str'] == subject_object[i][1]:
-            count3 += 1
-    return count/len(subject_object), count2/len(subject_object), count3/len(subject_object)
+    return count/len(obj_sub)
+
+def accuracy_hard_voting_5(prompt_list,obj_sub):
+    
+    count=0
+    for i in range(len(obj_sub)): 
+        a,b,c,d,e = prompt_list[0].replace('[x]',obj_sub[i][0]),prompt_list[1].replace('[x]',obj_sub[i][0]),prompt_list[2].replace('[x]',obj_sub[i][0]),prompt_list[3].replace('[x]',obj_sub[i][0]),prompt_list[4].replace('[x]',obj_sub[i][0])
+        data = []
+        for j in range(5):
+            data.append(pip(a)[j])
+            data.append(pip(b)[j])
+            data.append(pip(c)[j])
+            data.append(pip(d)[j])
+            data.append(pip(e)[j])
+            
+        if hard_voting(data) == obj_sub[i][1]:
+            count += 1
+    return count/len(obj_sub)
+#%% ######################################################################################## 앙상블 - 하드 보팅 실험
+result = accuracy_hard_voting_3(['[x]는 [MASK] 국적을 가진 구성원이다.', '[x]는 [MASK]국적을 가진 국민이다.','[x]은 [MASK] 국적을 가지다.'],obj_sub[18])
+result2 = accuracy_hard_voting_3(['[x]는 [MASK]에 본사가 있다.','[x]는 [MASK]에 위치한다.','[x]의 본사가 있는 곳은 [MASK]이다.'],obj_sub[9])
+result3 = accuracy_hard_voting_3(['[x]는 [MASK]라고도 불린다.','[x]는 [MASK]로 불린다.','[x]는 [MASK]라는 다른 명칭이 있다.'],obj_sub[27])
+print(result,result2,result3)
 #%%
-len(obj_sub)
-#%%
+per_origin_prompt_mining = ['[x]의 국적은 [MASK] 입니다.','[x]의 국적은 [MASK] 이다.','[x]의 국가는 [MASK] 이다.','[x]는 [MASK] 국적을 가진 국민이다.']
+#0.2252836304700162 0.22123176661264182 0.2633711507293355
+org_place_of_headquarters_prompt_mining = ['[x]는 [MASK]에 본사를 둔 회사이다.','[x]는 [MASK]에 본부의 소재지를 두고 있다.','[x]는 [MASK]에 위치한다.']
+# 0.20920502092050208 0.14811715481171547 0.14058577405857742
+org_alternate_names_prompt_mining = ['[x]의 다른 이름은 [MASK]이다', '[x]는 [MASK]로 불려진다.','[x]는 [MASK]라는 비슷한 이름이 있다.']
+result = accuracy_hard_voting_3(per_origin_prompt_mining,obj_sub[14])
+result2 =accuracy_hard_voting_3(org_place_of_headquarters_prompt_mining,obj_sub[2])
+result3 =accuracy_hard_voting_3(org_alternate_names_prompt_mining,obj_sub[24])
+print(result,result2,result3)
+#%% ######################################################################################## 앙상블 - 하드보팅 5개
+# per_origin_prompt_mining_manual = ['[x]의 국적은 [MASK] 입니다.','[x]의 국적은 [MASK] 이다.','[x]의 국가는 [MASK] 이다.','[x]는 [MASK] 국적을 가진 국민이다.','[MASK]에 국적을 가진 사람은 [x]이다.','[x]는 [MASK] 국적을 가진 국민이다.']
+# org_place_of_headquarters_prompt_mining_manual = ['[x]는 [MASK]에 본사를 둔 회사이다.','[x]는 [MASK]에 본부의 소재지를 두고 있다.','[x]는 [MASK]에 위치한다.','[MASK]에 본사를 둔 회사는 [x]이다.', '[x]는 [MASK]에 본사가 있다.']
+# org_alternate_names_prompt_mining_manual = ['[x]의 다른 이름은 [MASK]이다', '[x]는 [MASK]로 불려진다.','[x]는 [MASK]라는 비슷한 이름이 있다.','[x]의 비슷한 이름은 [MASK]이다','[x]는 [MASK]라고 불린다.']
+# result = accuracy_hard_voting_5(per_origin_prompt_mining_manual,obj_sub[14])
+# result2 =accuracy_hard_voting_5(org_place_of_headquarters_prompt_mining_manual,obj_sub[2])
+# result3 =accuracy_hard_voting_5(org_alternate_names_prompt_mining_manual,obj_sub[24])
+# print(result,result2,result3)
+
+per_origin_prompt_paraphraing_manual = ['[x]는 [MASK] 국적을 가진 구성원이다.', '[x]는 [MASK]국적을 가진 국민이다.','[x]은 [MASK] 국적을 가지다.','[MASK]에 국적을 가지고 있는 사람은 [x]이다.','[x]는 [MASK] 국적을 가진 국민이다.']
+org_place_of_headquarters_prompt_paraphraing_manual = ['[x]는 [MASK]에 본사가 있다.','[x]는 [MASK]에 위치한다.','[x]의 본사가 있는 곳은 [MASK]이다.','[MASK]에 본사를 둔 회사는 [x]이다.','[x]는 [MASK]에 본사가 있다.']
+org_alternate_names_prompt_paraphraing_manual = ['[x]는 [MASK]라고도 불린다.','[x]는 [MASK]로 불린다.','[x]는 [MASK]라는 다른 명칭이 있다.','[x]의 비슷한 이름은 [MASK]이다.','[x]는 [MASK]라고 불린다.']
+
+result = accuracy_hard_voting_5(per_origin_prompt_paraphraing_manual,obj_sub[14])
+result2 =accuracy_hard_voting_5(org_place_of_headquarters_prompt_paraphraing_manual,obj_sub[2])
+result3 =accuracy_hard_voting_5(org_alternate_names_prompt_paraphraing_manual,obj_sub[24])
+print(result,result2,result3)
+#%% ######################################################################################## 앙상블 - 소프트 보팅
 #prompt_list = ['[x]는 [MASK]이념을 가지고 있다.', '[x]는 [MASK] 사상이다.', '[x]는 [MASK]에 소속되어 있다.']
 import numpy as np
 count = 0
 def accuracy_soft_voting(prompt_list,obj_sub):
     max_data = []
     count=0
-    for i in range(len(obj_sub)):
+    for i in range(len(obj_sub)): 
         a,b,c = prompt_list[0].replace('[x]',obj_sub[i][0]),prompt_list[1].replace('[x]',obj_sub[i][0]),prompt_list[2].replace('[x]',obj_sub[i][0])
         data = []
         for j in range(5):
@@ -242,6 +285,7 @@ for i in tqdm(range(len(relation_name))):
 relation_name[7]
 #%%
 accuracy_soft_voting(per_origin_prompt,obj_sub[7])
+
 #%% ######################################################################################## 연습코드
 prompt_list_dataofbirth = ["[x]는 [MASK] 에서 태어났다.", "[x]는 [MASK] 에서 살고 있다.","[x]는 [MASK] 출생이다."]
 for i in prompt_list_dataofbirth:
